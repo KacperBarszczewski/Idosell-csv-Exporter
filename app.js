@@ -15,36 +15,53 @@ app.use(basicAuth({
 
 const fetchOrders = async () => {
     try {
+        let allOrders = [];
+        let page = 0;
+        let hasMorePages = true;
+
         const options = {
             method: 'POST',
             headers: {
                 accept: 'application/json',
                 'content-type': 'application/json',
                 'X-API-KEY': process.env.API_KEY || 'YXBwbGljYXRpb24xNjpYeHI1K0MrNVRaOXBaY2lEcnpiQzBETUZROUxrRzFFYXZuMkx2L0RHRXZRdXNkcmF5R0Y3ZnhDMW1nejlmVmZP',
-            },
-            body: JSON.stringify({ params: { ordersStatuses: ['finished'] } })
+            }
         };
 
-        const response = await fetch('https://zooart6.yourtechnicaldomain.com/api/admin/v5/orders/orders/search', options);
+        while (hasMorePages) {
+            const body = JSON.stringify({ params: { ordersStatuses: ['finished'], resultsPage: page } });
+            const response = await fetch('https://zooart6.yourtechnicaldomain.com/api/admin/v5/orders/orders/search', {
+                ...options,
+                body
+            });
 
-        if (!response.ok) throw new Error(response.status, response.statusText);
+            if (!response.ok) throw new Error(response.status, response.statusText);
 
-        const data = await response.json().catch(() => {
-            throw new Error('Odpowiedź serwera nie jest poprawnym JSONem');
-        });
+            const data = await response.json().catch(() => {
+                throw new Error('Odpowiedź serwera nie jest poprawnym JSONem');
+            });
 
-        const processedOrders = data.Results.map(order => ({
-            orderID: order.orderId,
-            products: order.orderDetails.productsResults.map(product => ({
-                productID: product.productId,
-                quantity: product.productQuantity,
-            })),
-            orderWorth: order.orderDetails.payments.orderBaseCurrency.orderProductsCost,
-        }));
+            const processedOrders = data.Results.map(order => ({
+                orderID: order.orderId,
+                products: order.orderDetails.productsResults.map(product => ({
+                    productID: product.productId,
+                    quantity: product.productQuantity,
+                })),
+                orderWorth: order.orderDetails.payments.orderBaseCurrency.orderProductsCost,
+            }));
 
-        ordersData = processedOrders;
-        console.log('Dane zamówień zaktualizowane.');
+            allOrders = allOrders.concat(processedOrders);
+            page++;
 
+            if (data.resultsNumberPage <= page) {
+                hasMorePages = false;
+            }
+
+        }
+
+        ordersData = allOrders;
+        console.log('Pobrano wszystkie zamówienia.');
+        
     } catch (error) {
         console.error('Błąd podczas pobierania zamówień:', error.message);
     }
