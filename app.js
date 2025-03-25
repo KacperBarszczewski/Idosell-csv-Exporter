@@ -13,6 +13,39 @@ app.use(basicAuth({
     challenge: true,
 }));
 
+const saveOrdersToFile = (orders) => {
+    fs.writeFileSync('orders.json', JSON.stringify(orders), 'utf8');
+};
+
+const isDataStale = () => {
+    try {
+        const filePath = 'orders.json';
+        const stats = fs.statSync(filePath);
+        const lastModified = new Date(stats.mtime);
+        const now = new Date();
+        const diffHours = (now - lastModified) / (1000 * 60 * 60);
+
+        return diffHours >= 24;
+    } catch (error) {
+        return true;
+    }
+};
+
+const loadOrdersFromFile = () => {
+    try {
+        if (isDataStale()) {
+            console.log('Dane są przestarzałe, pobieram nowe...');
+            return [];
+        }
+
+        const data = fs.readFileSync('orders.json', 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.log('Brak zapisanego pliku z zamówieniami lub błąd wczytywania:', error.message);
+        return [];
+    }
+};
+
 const fetchOrders = async () => {
     try {
         let allOrders = [];
@@ -64,6 +97,7 @@ const fetchOrders = async () => {
         }
 
         ordersData = allOrders;
+        saveOrdersToFile(ordersData);
         console.log('Pobrano wszystkie zamówienia.');
 
     } catch (error) {
@@ -147,6 +181,11 @@ app.get('/orders/:id', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Serwer działa na porcie ${PORT}`);
-    fetchOrders();
+    ordersData = loadOrdersFromFile();
+
+    if (ordersData.length === 0) {
+        fetchOrders();
+    }
+
 });
 
