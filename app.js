@@ -102,10 +102,28 @@ app.get('/orders', (req, res) => {
         filteredOrders = filteredOrders.filter(order => order.orderWorth <= Number(maxWorth));
     }
 
-    const csvContent = [
-        'Order ID;Order Worth;Products',
-        ...filteredOrders.map(order => `${order.orderID};${order.orderWorth.toString().replace('.', ',')};"${JSON.stringify(order.products)}"`)
-    ].join('\n');
+    const maxProducts = Math.max(...filteredOrders.map(order => order.products.length), 0);
+
+    let header = ['Order ID', 'Order Worth'];
+    for (let i = 1; i <= maxProducts; i++) {
+        header.push(`Product ID ${i}`, `Quantity ${i}`);
+    }
+
+    const rows = filteredOrders.map(order => {
+        let row = [order.orderID, order.orderWorth.toString().replace('.', ',')];
+
+        order.products.forEach(product => {
+            row.push(product.productID, product.quantity);
+        });
+
+        while (row.length < header.length) {
+            row.push('');
+        }
+
+        return row.join(';');
+    });
+
+    const csvContent = [header.join(';'), ...rows].join('\n');
 
     fs.writeFileSync('orders.csv', '\ufeff' + csvContent, 'utf8');
 
