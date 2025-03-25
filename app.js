@@ -19,12 +19,16 @@ const fetchOrders = async () => {
         let page = 0;
         let hasMorePages = true;
 
+        if (!process.env.API_KEY) {
+            throw new Error('Brak klucza API. Ustaw zmienną środowiskową API_KEY.');
+        }
+
         const options = {
             method: 'POST',
             headers: {
                 accept: 'application/json',
                 'content-type': 'application/json',
-                'X-API-KEY': process.env.API_KEY || 'YXBwbGljYXRpb24xNjpYeHI1K0MrNVRaOXBaY2lEcnpiQzBETUZROUxrRzFFYXZuMkx2L0RHRXZRdXNkcmF5R0Y3ZnhDMW1nejlmVmZP',
+                'X-API-KEY': process.env.API_KEY,
             }
         };
 
