@@ -65,7 +65,7 @@ const fetchOrders = async () => {
 
         ordersData = allOrders;
         console.log('Pobrano wszystkie zamówienia.');
-        
+
     } catch (error) {
         console.error('Błąd podczas pobierania zamówień:', error.message);
     }
@@ -92,48 +92,51 @@ const scheduleDailyTask = (hour, minute) => {
 scheduleDailyTask(1, 0);
 
 app.get('/orders', (req, res) => {
-    const { minWorth, maxWorth } = req.query;
-    let filteredOrders = ordersData;
+    try {
+        const { minWorth, maxWorth } = req.query;
+        let filteredOrders = ordersData;
 
-    if (minWorth) {
-        filteredOrders = filteredOrders.filter(order => order.orderWorth >= Number(minWorth));
-    }
-    if (maxWorth) {
-        filteredOrders = filteredOrders.filter(order => order.orderWorth <= Number(maxWorth));
-    }
+        if (minWorth) {
+            filteredOrders = filteredOrders.filter(order => order.orderWorth >= Number(minWorth));
+        }
+        if (maxWorth) {
+            filteredOrders = filteredOrders.filter(order => order.orderWorth <= Number(maxWorth));
+        }
 
-    const maxProducts = Math.max(...filteredOrders.map(order => order.products.length), 0);
+        const maxProducts = Math.max(...filteredOrders.map(order => order.products.length), 0);
 
-    let header = ['Order ID', 'Order Worth'];
-    for (let i = 1; i <= maxProducts; i++) {
-        header.push(`Product ID ${i}`, `Quantity ${i}`);
-    }
+        let header = ['Order ID', 'Order Worth'];
+        for (let i = 1; i <= maxProducts; i++) {
+            header.push(`Product ID ${i}`, `Quantity ${i}`);
+        }
 
-    const rows = filteredOrders.map(order => {
-        let row = [order.orderID, order.orderWorth.toString().replace('.', ',')];
+        const rows = filteredOrders.map(order => {
+            let row = [order.orderID, order.orderWorth.toString().replace('.', ',')];
 
-        order.products.forEach(product => {
-            row.push(product.productID, product.quantity);
+            order.products.forEach(product => {
+                row.push(product.productID, product.quantity);
+            });
+
+            while (row.length < header.length) {
+                row.push('');
+            }
+
+            return row.join(';');
         });
 
-        while (row.length < header.length) {
-            row.push('');
-        }
+        const csvContent = [header.join(';'), ...rows].join('\n');
 
-        return row.join(';');
-    });
+        const csvBuffer = Buffer.from(csvContent, 'utf8');
 
-    const csvContent = [header.join(';'), ...rows].join('\n');
+        res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.send(csvBuffer);
+    }
+    catch (error) {
+        console.error('Błąd podczas tworzenia lub pobierania csv', error.message);
+        res.status(500).send('Błąd podczas tworzenia lub pobierania csv');
+    }
 
-    fs.writeFileSync('orders.csv', '\ufeff' + csvContent, 'utf8');
-
-    res.download('orders.csv', 'orders.csv', err => {
-        if (err) {
-            res.status(500).send('Błąd przy generowaniu CSV.');
-        } else {
-            console.log('CSV wygenerowany i wysłany!');
-        }
-    });
 });
 
 app.get('/orders/:id', (req, res) => {
